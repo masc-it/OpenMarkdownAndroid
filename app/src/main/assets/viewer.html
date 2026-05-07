@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <link rel="stylesheet" href="katex.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 16px;
+      line-height: 1.6;
+      color: #24292f;
+      word-wrap: break-word;
+    }
+    pre {
+      background: #f6f8fa;
+      padding: 16px;
+      overflow-x: auto;
+      border-radius: 6px;
+    }
+    code {
+      background: rgba(175,184,193,0.2);
+      padding: 0.2em 0.4em;
+      border-radius: 3px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+      font-size: 85%;
+    }
+    pre code { background: none; padding: 0; font-size: 100%; }
+    img { max-width: 100%; height: auto; }
+    table { border-collapse: collapse; width: 100%; overflow-x: auto; display: block; }
+    th, td { border: 1px solid #d0d7de; padding: 6px 13px; }
+    th { background: #f6f8fa; }
+    blockquote { border-left: 4px solid #d0d7de; margin: 0; padding-left: 16px; color: #57606a; }
+    a { color: #0969da; text-decoration: none; }
+    .katex-display { overflow-x: auto; overflow-y: hidden; padding: 8px 0; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0d1117; color: #c9d1d9; }
+      pre { background: #161b22; }
+      code { background: rgba(110,118,129,0.4); }
+      th { background: #161b22; }
+      th, td { border-color: #30363d; }
+      blockquote { border-left-color: #30363d; color: #8b949e; }
+      a { color: #58a6ff; }
+    }
+  </style>
+</head>
+<body>
+  <div id="content"><p>Open a markdown file to view it.</p></div>
+  <script src="katex.min.js"></script>
+  <script src="mhchem.min.js"></script>
+  <script src="markdown-it-14.min.js"></script>
+  <script>
+    window.md = window.markdownit({html: true, linkify: true, typographer: true});
+
+    // Invisible placeholder so markdown-it never sees raw math delimiters or KaTeX HTML.
+    // Teammates: markdown-it parses _ and * as emphasis; feeding it KaTeX HTML breaks tags.
+    var MATH_PLACEHOLDER = '\uFFFC';
+    var mathCache = [];
+
+    function protectMath(tex, displayMode) {
+      var idx = mathCache.length;
+      mathCache.push({tex: tex.trim(), displayMode: displayMode});
+      return MATH_PLACEHOLDER + idx + MATH_PLACEHOLDER;
+    }
+
+    function renderMarkdown(text) {
+      console.log('renderMarkdown called, length=' + (text ? text.length : 0));
+      if (!text) {
+        document.getElementById('content').innerHTML = '<p>Open a markdown file to view it.</p>';
+        return;
+      }
+
+      mathCache = [];
+
+      // Replace $$...$$ and $...$ with placeholders BEFORE markdown-it runs.
+      // This prevents markdown-it from seeing underscores/asterisks inside math.
+      var processed = text
+        .replace(/\$\$([\s\S]*?)\$\$/g, function(_, tex) { return protectMath(tex, true); })
+        .replace(/\$([^\$\n]+?)\$/g, function(_, tex) { return protectMath(tex, false); });
+
+      var html = window.md.render(processed);
+
+      // Swap placeholders back for rendered KaTeX HTML.
+      html = html.replace(new RegExp(MATH_PLACEHOLDER + '(\\d+)' + MATH_PLACEHOLDER, 'g'),
+        function(_, idx) {
+          var m = mathCache[parseInt(idx)];
+          if (!m) return '';
+          return katex.renderToString(m.tex, {throwOnError: false, displayMode: m.displayMode});
+        });
+
+      document.getElementById('content').innerHTML = html;
+      console.log('renderMarkdown done, math blocks=' + mathCache.length);
+    }
+
+    function renderMarkdownBase64(b64) {
+      console.log('renderMarkdownBase64 called, b64 length=' + b64.length);
+      try {
+        var bytes = Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
+        var text = new TextDecoder().decode(bytes);
+        console.log('renderMarkdownBase64 decoded, text length=' + text.length);
+        renderMarkdown(text);
+      } catch (e) {
+        console.error('renderMarkdownBase64 failed: ' + e.message);
+        document.getElementById('content').innerHTML = '<p style="color:red">Error decoding content: ' + e.message + '</p>';
+      }
+    }
+  </script>
+</body>
+</html>
