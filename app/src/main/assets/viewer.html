@@ -113,7 +113,22 @@
         });
 
       document.getElementById('content').innerHTML = html;
+      injectHeadingIds();
       console.log('renderMarkdown done, math blocks=' + mathCache.length);
+    }
+
+    function injectHeadingIds() {
+      var headings = document.querySelectorAll('#content h1,#content h2,#content h3,#content h4,#content h5,#content h6');
+      for (var i = 0; i < headings.length; i++) {
+        headings[i].id = 'toc-' + i;
+      }
+    }
+
+    function scrollToHeading(n) {
+      var el = document.getElementById('toc-' + n);
+      if (el) {
+        el.scrollIntoView({behavior: 'smooth', block: 'start'});
+      }
     }
 
     function renderMarkdownBase64(b64) {
