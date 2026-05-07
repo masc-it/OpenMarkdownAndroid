@@ -30,7 +30,7 @@ inline fun <reified T : android.os.Parcelable> Intent.parcelable(key: String): T
         else -> getParcelableExtra(key) as? T
     }
 
-class MainActivity : ComponentActivity() {
+class ViewerActivity : ComponentActivity() {
 
     // We queue markdown here if WebView hasn't finished loading yet.
     // Teammates: WebView is async; we can't render until the page loads.

@@ -33,6 +33,30 @@
     blockquote { border-left: 4px solid #d0d7de; margin: 0; padding-left: 16px; color: #57606a; }
     a { color: #0969da; text-decoration: none; }
     .katex-display { overflow-x: auto; overflow-y: hidden; padding: 8px 0; }
+
+    /* Welcome screen */
+    .welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 70vh;
+      text-align: center;
+      opacity: 0.85;
+    }
+    .welcome h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+      letter-spacing: -0.02em;
+    }
+    .welcome em {
+      font-size: 1rem;
+      color: #57606a;
+    }
+    @media (prefers-color-scheme: dark) {
+      .welcome em { color: #8b949e; }
+    }
     @media (prefers-color-scheme: dark) {
       body { background: #0d1117; color: #c9d1d9; }
       pre { background: #161b22; }
@@ -45,7 +69,7 @@
   </style>
 </head>
 <body>
-  <div id="content"><p>Open a markdown file to view it.</p></div>
+  <div id="content"><div class="welcome"><h1>OpenMarkdown</h1><em>render .md files, html and latex support</em></div></div>
   <script src="katex.min.js"></script>
   <script src="mhchem.min.js"></script>
   <script src="markdown-it-14.min.js"></script>
@@ -66,7 +90,7 @@
     function renderMarkdown(text) {
       console.log('renderMarkdown called, length=' + (text ? text.length : 0));
       if (!text) {
-        document.getElementById('content').innerHTML = '<p>Open a markdown file to view it.</p>';
+        document.getElementById('content').innerHTML = '<div class="welcome"><h1>OpenMarkdown</h1><em>render .md files, html and latex support</em></div>';
         return;
       }
 
