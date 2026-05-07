@@ -10,6 +10,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.mascit.openmarkdown.util.RecentFilesStore
+import com.mascit.openmarkdown.util.TableOfContents
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -32,6 +34,13 @@ inline fun <reified T : android.os.Parcelable> Intent.parcelable(key: String): T
 
 class ViewerActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_ORIGINAL_URI = "com.mascit.openmarkdown.ORIGINAL_URI"
+        const val EXTRA_CACHE_PATH = "com.mascit.openmarkdown.CACHE_PATH"
+    }
+
+    private val recentFiles by lazy { RecentFilesStore(this) }
+
     // We queue markdown here if WebView hasn't finished loading yet.
     // Teammates: WebView is async; we can't render until the page loads.
     private var pendingMarkdown: String? = null
@@ -46,6 +55,8 @@ class ViewerActivity : ComponentActivity() {
 
         pendingMarkdown = readMarkdownFromIntent()
         Log.d(TAG, "onCreate pendingMarkdown length=${pendingMarkdown?.length}, null=${pendingMarkdown == null}")
+
+        saveToRecent()
 
         setContent {
             OpenMarkdownTheme {
@@ -90,9 +101,25 @@ class ViewerActivity : ComponentActivity() {
         setIntent(intent)
         pendingMarkdown = readMarkdownFromIntent()
         Log.d(TAG, "onNewIntent pendingMarkdown length=${pendingMarkdown?.length}, null=${pendingMarkdown == null}")
+        saveToRecent()
         if (pageLoaded) {
             renderPendingMarkdown()
         }
+    }
+
+    private fun saveToRecent() {
+        val text = pendingMarkdown ?: return
+
+        // Resolve original URI: explicit extra (recents reopen), intent.data (VIEW),
+        // EXTRA_STREAM (SEND). Skip for plain shared text (no source URI).
+        val uriStr = intent?.getStringExtra(EXTRA_ORIGINAL_URI)
+            ?: intent?.data?.toString()
+            ?: intent?.let { intent.parcelable<android.net.Uri>(Intent.EXTRA_STREAM) }?.toString()
+            ?: return
+
+        val title = TableOfContents.parse(text).extractTitle(text) ?: uriStr.substringAfterLast('/')
+        recentFiles.push(uriStr, title, text)
+        Log.d(TAG, "saveToRecent uri=$uriStr title=$title")
     }
 
     private fun dumpIntentExtras(intent: Intent?) {
@@ -119,6 +146,18 @@ class ViewerActivity : ComponentActivity() {
     private fun readMarkdownFromIntent(): String? {
         val action = intent?.action
         Log.d(TAG, "readMarkdownFromIntent action=$action")
+
+        // Case 0: opened from recents — read local cache file directly (no URI permission needed)
+        val cachePath = intent?.getStringExtra(EXTRA_CACHE_PATH)
+        if (cachePath != null) {
+            Log.d(TAG, "readMarkdownFromIntent reading from cache: $cachePath")
+            return try {
+                File(cachePath).readText()
+            } catch (e: Exception) {
+                Log.e(TAG, "readMarkdownFromIntent cache read failed", e)
+                "Error reading cached file: ${e.message}"
+            }
+        }
 
         // Case 1: VIEW / EDIT with a URI
         val dataUri: Uri? = intent?.data
