@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      padding: 16px;
+      padding: 0 8px;
       line-height: 1.6;
       color: #24292f;
       word-wrap: break-word;
@@ -123,6 +123,17 @@
         headings[i].id = 'toc-' + i;
       }
     }
+
+    function updateActiveHeading() {
+      var headings = document.querySelectorAll('#content [id^="toc-"]');
+      for (var i = headings.length - 1; i >= 0; i--) {
+        if (headings[i].getBoundingClientRect().top <= 100) {
+          try { Android.onHeadingChanged(i); } catch(e) {}
+          return;
+        }
+      }
+    }
+    window.addEventListener('scroll', updateActiveHeading, {passive: true});
 
     function scrollToHeading(n) {
       var el = document.getElementById('toc-' + n);

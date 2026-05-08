@@ -18,19 +18,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.BottomAppBar
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +71,14 @@ class ViewerActivity : ComponentActivity() {
 
     private var tocEntries by mutableStateOf<List<TocEntry>>(emptyList())
     private var showToc by mutableStateOf(false)
+    private var activeHeadingIndex by mutableStateOf<Int?>(null)
+
+    private inner class TocBridge {
+        @android.webkit.JavascriptInterface
+        fun onHeadingChanged(index: Int) {
+            activeHeadingIndex = index
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,6 +97,7 @@ class ViewerActivity : ComponentActivity() {
                 ViewerScreen(
                     tocEntries = tocEntries,
                     showToc = showToc,
+                    activeHeadingIndex = activeHeadingIndex,
                     onTocRequest = { showToc = true },
                     onTocDismiss = { showToc = false },
                     onTocEntryClick = { index -> scrollToHeading(index) },
@@ -115,6 +126,7 @@ class ViewerActivity : ComponentActivity() {
     private fun createWebView(): WebView {
         return WebView(this).apply {
             settings.javaScriptEnabled = true
+            addJavascriptInterface(TocBridge(), "Android")
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(message: android.webkit.ConsoleMessage): Boolean {
                     Log.d(TAG, "JS console: ${message.message()} -- ${message.sourceId()}:${message.lineNumber()}")
@@ -251,6 +263,7 @@ class ViewerActivity : ComponentActivity() {
 private fun ViewerScreen(
     tocEntries: List<TocEntry>,
     showToc: Boolean,
+    activeHeadingIndex: Int?,
     onTocRequest: () -> Unit,
     onTocDismiss: () -> Unit,
     onTocEntryClick: (Int) -> Unit,
@@ -259,29 +272,34 @@ private fun ViewerScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Scaffold(
-        bottomBar = {
-            if (tocEntries.isNotEmpty()) {
-                BottomAppBar {
-                    TextButton(onClick = onTocRequest) {
-                        Text(
-                            text = "☰  Contents",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 0.3.sp
-                        )
-                    }
-                }
-            }
-        }
+        modifier = Modifier.fillMaxSize()
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            if (tocEntries.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clickable(onClick = onTocRequest),
+                        text = "Contents",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.3.sp
+                    )
+                }
+            }
+
             AndroidView(
                 factory = { webViewFactory() },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
             )
         }
     }
@@ -293,6 +311,7 @@ private fun ViewerScreen(
         ) {
             TocSheetContent(
                 entries = tocEntries,
+                activeIndex = activeHeadingIndex,
                 onEntryClick = onTocEntryClick
             )
         }
@@ -302,8 +321,17 @@ private fun ViewerScreen(
 @Composable
 private fun TocSheetContent(
     entries: List<TocEntry>,
+    activeIndex: Int?,
     onEntryClick: (Int) -> Unit
 ) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(Unit) {
+        if (activeIndex != null && activeIndex < entries.size) {
+            listState.scrollToItem(activeIndex)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -319,22 +347,32 @@ private fun TocSheetContent(
         )
 
         LazyColumn(
+            state = listState,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             itemsIndexed(entries) { index, entry ->
+                val isActive = index == activeIndex
                 val indent = (entry.level - 1) * 16
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onEntryClick(index) }
+                        .then(
+                            if (isActive) Modifier.background(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                            ) else Modifier
+                        )
                         .padding(start = indent.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = entry.text,
                         fontSize = 15.sp,
-                        fontWeight = if (entry.level <= 2) FontWeight.Medium else FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (isActive) FontWeight.Bold
+                                    else if (entry.level <= 2) FontWeight.Medium
+                                    else FontWeight.Normal,
+                        color = if (isActive) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
