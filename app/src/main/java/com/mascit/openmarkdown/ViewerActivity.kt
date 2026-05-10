@@ -1,9 +1,9 @@
 package com.mascit.openmarkdown
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.util.Base64
 import android.util.Log
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -69,6 +69,24 @@ class ViewerActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var pageLoaded = false
 
+    private val markdownBridge = MarkdownBridge()
+
+    private inner class MarkdownBridge {
+        @Volatile
+        private var content: String? = null
+
+        fun push(text: String) {
+            content = text
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getContent(): String {
+            val result = content
+            content = null
+            return result ?: ""
+        }
+    }
+
     private var tocEntries by mutableStateOf<List<TocEntry>>(emptyList())
     private var showToc by mutableStateOf(false)
     private var activeHeadingIndex by mutableStateOf<Int?>(null)
@@ -83,9 +101,7 @@ class ViewerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Log.d(TAG, "onCreate intent=${intent} action=${intent?.action} data=${intent?.data}")
-        dumpIntentExtras(intent)
-
+        Log.d(TAG, "onCreate intent=${intent} action=${intent?.action}")
         pendingMarkdown = readMarkdownFromIntent()
         tocEntries = pendingMarkdown?.let { TableOfContents.parse(it).entries } ?: emptyList()
         Log.d(TAG, "onCreate pendingMarkdown length=${pendingMarkdown?.length} toc=${tocEntries.size}")
@@ -109,8 +125,7 @@ class ViewerActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        Log.d(TAG, "onNewIntent intent=$intent action=${intent?.action} data=${intent?.data}")
-        dumpIntentExtras(intent)
+        Log.d(TAG, "onNewIntent intent=$intent action=${intent?.action}")
         setIntent(intent)
         pendingMarkdown = readMarkdownFromIntent()
         tocEntries = pendingMarkdown?.let { TableOfContents.parse(it).entries } ?: emptyList()
@@ -123,16 +138,13 @@ class ViewerActivity : ComponentActivity() {
 
     // ── WebView ──────────────────────────────────────────────────────────
 
+    @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(): WebView {
         return WebView(this).apply {
             settings.javaScriptEnabled = true
+            addJavascriptInterface(markdownBridge, "AndroidBridge")
             addJavascriptInterface(TocBridge(), "Android")
-            webChromeClient = object : WebChromeClient() {
-                override fun onConsoleMessage(message: android.webkit.ConsoleMessage): Boolean {
-                    Log.d(TAG, "JS console: ${message.message()} -- ${message.sourceId()}:${message.lineNumber()}")
-                    return true
-                }
-            }
+            webChromeClient = object : WebChromeClient() {}
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     Log.d(TAG, "WebView onPageFinished url=$url")
@@ -163,16 +175,6 @@ class ViewerActivity : ComponentActivity() {
         val title = TableOfContents.parse(text).extractTitle(text) ?: uriStr.substringAfterLast('/')
         recentFiles.push(uriStr, title, text)
         Log.d(TAG, "saveToRecent uri=$uriStr title=$title")
-    }
-
-    private fun dumpIntentExtras(intent: Intent?) {
-        if (intent == null) return
-        val extras = intent.extras ?: run { Log.d(TAG, "Intent extras: null"); return }
-        for (key in extras.keySet()) {
-            @Suppress("DEPRECATION")
-            val value = extras[key]
-            Log.d(TAG, "Intent extra: key=$key value=$value type=${value?.javaClass?.simpleName}")
-        }
     }
 
     private fun readMarkdownFromIntent(): String? {
@@ -248,11 +250,8 @@ class ViewerActivity : ComponentActivity() {
         if (text == null || view == null) return
         pendingMarkdown = null
 
-        val base64 = Base64.encodeToString(text.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        Log.d(TAG, "renderPendingMarkdown calling JS with base64 length=${base64.length}")
-        view.evaluateJavascript("renderMarkdownBase64('$base64')") { result ->
-            Log.d(TAG, "renderPendingMarkdown JS callback result=$result")
-        }
+        markdownBridge.push(text)
+        view.evaluateJavascript("renderFromAndroid()", null)
     }
 }
 

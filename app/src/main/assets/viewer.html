@@ -142,16 +142,15 @@
       }
     }
 
-    function renderMarkdownBase64(b64) {
-      console.log('renderMarkdownBase64 called, b64 length=' + b64.length);
+    function renderFromAndroid() {
+      console.log('renderFromAndroid called');
       try {
-        var bytes = Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
-        var text = new TextDecoder().decode(bytes);
-        console.log('renderMarkdownBase64 decoded, text length=' + text.length);
+        var text = AndroidBridge.getContent();
+        console.log('renderFromAndroid got content, length=' + (text ? text.length : 0));
         renderMarkdown(text);
       } catch (e) {
-        console.error('renderMarkdownBase64 failed: ' + e.message);
-        document.getElementById('content').innerHTML = '<p style="color:red">Error decoding content: ' + e.message + '</p>';
+        console.error('renderFromAndroid failed: ' + e.message);
+        document.getElementById('content').innerHTML = '<p style="color:red">Error loading content</p>';
       }
     }
   </script>
