@@ -14,6 +14,11 @@ Render `.md` files from any file manager or app that sends `text/markdown` or `t
 - **Themes** — Light / Dark.
 - **No network** — all rendering assets vendored locally.
 
+## Requirements
+
+- **Minimum**: Android 8.0 (API 26 — Oreo)
+- **Target**: Android 16 (API 36)
+
 ## Architecture
 
 See [docs/ARCH.md](docs/ARCH.md) for deep dive.
