@@ -15,7 +15,7 @@ WelcomeActivity ──(intent)──→ ViewerActivity
 
 **WelcomeActivity** (`com.mascit.openmarkdown.WelcomeActivity`):
 - Launcher activity. Shows hero text ("# OpenMarkdown") + recent files list.
-- Theme toggle (💻/☀️/🌙) cycles through SYSTEM → LIGHT → DARK.
+- Theme toggle cycles through LIGHT → DARK.
 - No navigation component — opens ViewerActivity via explicit `Intent`.
 
 **ViewerActivity** (`com.mascit.openmarkdown.ViewerActivity`):
@@ -69,49 +69,6 @@ All registered via `WebView.addJavascriptInterface()` in `createWebView()`.
 1. `injectHeadingIds()` assigns `id="toc-N"` to every `<h1>`-`<h6>` in rendered content.
 2. `updateActiveHeading()` iterates headings bottom→top, finds first with `getBoundingClientRect().top <= 100`, calls `Android.onHeadingChanged(i)`.
 3. `ViewerActivity` stores result as `activeHeadingIndex` state — used to highlight active entry in ToC `ModalBottomSheet`.
-
-## Theming
-
-Two separate theming systems:
-
-### WelcomeActivity — Tailwind Slate palette
-
-Hardcoded `WelcomeColors` data class with light/dark variants. Not M3. Values:
-
-| Role | Light | Dark |
-|------|-------|------|
-| background | `#FFFFFF` | `#0D1117` (GitHub dark) |
-| title | `#0F172A` (slate-900) | `#F1F5F9` (slate-100) |
-| hash | `#94A3B8` (slate-400) | `#334155` (slate-700) |
-| tagline | `#64748B` (slate-500) | `#475569` (slate-600) |
-| sectionLabel | `#CBD5E1` (slate-300) | `#334155` (slate-700) |
-| rowTitle | `#0F172A` (slate-900) | `#E2E8F0` (slate-200) |
-| rowTime | `#94A3B8` (slate-400) | `#475569` (slate-600) |
-| rowBg | `#F8FAFC` (slate-50) | `#161B22` (GitHub card) |
-| rowBgPressed | `#F1F5F9` (slate-100) | `#1C2433` |
-
-This is intentional — not a bug. WelcomeActivity is a standalone UI not wrapped in `OpenMarkdownTheme`.
-
-### ViewerActivity — M3 + dynamic color
-
-`OpenMarkdownTheme` composable (in `ui/theme/Theme.kt`):
-- Uses `ThemePreference` (SharedPreferences, key `theme_mode`) to resolve SYSTEM/LIGHT/DARK.
-- Android 12+ (`Build.VERSION.SDK_INT >= S`): `dynamicDarkColorScheme()` / `dynamicLightColorScheme()`.
-- Pre-Android 12: fallback purple color scheme (`Purple80` / `Purple40`).
-- CSS custom properties are computed from `MaterialTheme.colorScheme` and injected into WebView via `ThemeBridge.getThemeColors()`.
-
-### Theme bridge — CSS variables mapped
-
-| M3 source | CSS variable |
-|-----------|-------------|
-| `colors.background` | `--bg` |
-| `colors.surface` | `--surface` |
-| `colors.onBackground` | `--text` |
-| `colors.onSurfaceVariant` | `--text-secondary` |
-| `colors.primary` | `--primary` / `--link` |
-| `colors.surfaceVariant` | `--code-bg` |
-| `colors.surfaceVariant (40% alpha)` | `--code-inline` |
-| `colors.outline` | `--border` |
 
 ## Table of Contents
 
@@ -203,7 +160,3 @@ app/src/main/assets/
 ├── mhchem.min.js               # Chemical equation extension
 └── mathtex-script-type.min.js  # (unused) script-type math addon
 ```
-
-## Research Artifacts
-
-`data/research/` contains articles about Jetpack DataStore (`.md` + `.html` pairs and a `results.json`). These are research notes, not app code. The app currently uses SharedPreferences, not DataStore.

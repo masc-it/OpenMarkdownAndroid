@@ -16,8 +16,6 @@ Render `.md` files from any file manager, share sheet, or app that sends `text/m
 
 ## Screenshots
 
-<!-- TODO: add screenshots of WelcomeActivity and ViewerActivity -->
-
 ## Architecture
 
 See [docs/ARCH.md](docs/ARCH.md) for deep dive on:
@@ -64,19 +62,3 @@ app/src/main/assets/
 ├── mhchem.min.js              KaTeX chemistry extension
 └── mathtex-script-type.min.js (unused) script-type math addon
 ```
-
-## Build
-
-```sh
-./gradlew assembleDebug
-```
-
-APK at `app/build/outputs/apk/debug/app-debug.apk`.
-
-## License
-
-<!-- TODO: choose a license (MIT / Apache 2.0 / GPL) -->
-
-## Contributing
-
-<!-- TODO: add contributing guidelines -->
