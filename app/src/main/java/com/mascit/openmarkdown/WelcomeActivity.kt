@@ -27,8 +27,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -232,8 +232,8 @@ private fun ThemeSwitchButton(
     onClick: () -> Unit
 ) {
     val imageVector = when (mode) {
-        ThemeMode.LIGHT -> Icons.Filled.LightMode
-        ThemeMode.DARK  -> Icons.Filled.DarkMode
+        ThemeMode.LIGHT -> Icons.Filled.WbSunny
+        ThemeMode.DARK  -> Icons.Filled.NightsStay
     }
     val label = when (mode) {
         ThemeMode.LIGHT -> "light"
@@ -243,17 +243,17 @@ private fun ThemeSwitchButton(
     Box(
         modifier = modifier
             .semantics { contentDescription = "Switch theme: $label" }
-            .size(44.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            .size(40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = imageVector,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(24.dp)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(22.dp)
         )
     }
 }
