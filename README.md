@@ -11,7 +11,7 @@ Render `.md` files from any file manager or app that sends `text/markdown` or `t
 - **HTML passthrough** — markdown-it runs in `html: true` mode.
 - **Table of contents** — auto-detected from ATX (`#`–`######`) and setext headings. Modal bottom sheet with scroll tracking.
 - **Recent files** — last 5 files cached locally (survives share permission revocation).
-- **Themes** — Light / Dark / System. Material You dynamic color on Android 12+.
+- **Themes** — Light / Dark.
 - **No network** — all rendering assets vendored locally.
 
 ## Architecture
