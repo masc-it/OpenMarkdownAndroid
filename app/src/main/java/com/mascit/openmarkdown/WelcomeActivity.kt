@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +24,11 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +46,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -101,16 +104,14 @@ class WelcomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
+            var themeMode by remember { mutableStateOf(ThemeMode.LIGHT) }
 
             OpenMarkdownTheme {
                 val pref = LocalThemePreference.current
                 // Sync state from pref on first composition
                 if (pref != null) themeMode = pref.getThemeMode()
 
-                val sysDark = isSystemInDarkTheme()
                 val effectiveDark = when (themeMode) {
-                    ThemeMode.SYSTEM -> sysDark
                     ThemeMode.LIGHT -> false
                     ThemeMode.DARK -> true
                 }
@@ -124,9 +125,8 @@ class WelcomeActivity : ComponentActivity() {
                 ) {
                     WelcomeContent(colors, themeMode = themeMode, onThemeToggle = {
                         val next = when (themeMode) {
-                            ThemeMode.SYSTEM -> ThemeMode.LIGHT
                             ThemeMode.LIGHT -> ThemeMode.DARK
-                            ThemeMode.DARK -> ThemeMode.SYSTEM
+                            ThemeMode.DARK -> ThemeMode.LIGHT
                         }
                         pref?.setThemeMode(next)
                         themeMode = next
@@ -231,30 +231,31 @@ private fun ThemeSwitchButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-
-    val emoji = when (mode) {
-        ThemeMode.SYSTEM -> "\uD83D\uDCBB"  // 💻
-        ThemeMode.LIGHT  -> "\u2600\uFE0F"  // ☀️
-        ThemeMode.DARK   -> "\uD83C\uDF19"  // 🌙
+    val imageVector = when (mode) {
+        ThemeMode.LIGHT -> Icons.Filled.LightMode
+        ThemeMode.DARK  -> Icons.Filled.DarkMode
     }
-
     val label = when (mode) {
-        ThemeMode.SYSTEM -> "system"
-        ThemeMode.LIGHT  -> "light"
-        ThemeMode.DARK   -> "dark"
+        ThemeMode.LIGHT -> "light"
+        ThemeMode.DARK  -> "dark"
     }
 
-    Text(
-        text = emoji,
-        fontSize = 24.sp,
+    Box(
         modifier = modifier
             .semantics { contentDescription = "Switch theme: $label" }
             .size(44.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
             .clickable(onClick = onClick),
-        textAlign = TextAlign.Center
-    )
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(24.dp)
+        )
+    }
 }
 
 @Composable

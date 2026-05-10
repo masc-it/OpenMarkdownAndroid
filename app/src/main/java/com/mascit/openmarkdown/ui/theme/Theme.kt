@@ -2,7 +2,6 @@ package com.mascit.openmarkdown.ui.theme
 
 import android.app.Activity
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -42,7 +41,6 @@ val LocalThemePreference = staticCompositionLocalOf<ThemePreference?> { null }
 
 @Composable
 fun OpenMarkdownTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -50,7 +48,6 @@ fun OpenMarkdownTheme(
     val pref = remember { ThemePreference(context) }
 
     val effectiveDarkTheme = when (pref.getThemeMode()) {
-        ThemeMode.SYSTEM -> darkTheme
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
