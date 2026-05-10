@@ -16,7 +16,6 @@
         <activity
             android:name=".WelcomeActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.OpenMarkdown">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,7 +28,6 @@
             android:name=".ViewerActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:label="@string/app_name"
             android:theme="@style/Theme.OpenMarkdown">
 
             <!-- Open markdown files from file managers and other apps -->
@@ -47,9 +45,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="file" />
-                <data android:pathPattern=".*\\.md" />
-                <data android:pathPattern=".*\\.markdown" />
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\\.md" />
             </intent-filter>
 
             <!-- Receive shared files from Telegram, etc. -->
@@ -58,7 +54,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
                 <data android:mimeType="text/markdown" />
-                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
     </application>
