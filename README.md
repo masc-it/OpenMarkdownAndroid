@@ -2,7 +2,9 @@
 
 > Android markdown viewer with HTML and LaTeX (KaTeX) rendering.
 
-<img src="screenshots/openmd_home.jpeg" alt="Home screen" width="360" />
+<p align="center">
+  <img src="screenshots/openmd_home.jpeg" alt="Home screen" width="360" />
+</p>
 
 More screenshots available in [`screenshots/`](screenshots/).
 
