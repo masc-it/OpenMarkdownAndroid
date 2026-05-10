@@ -2,6 +2,10 @@
 
 > Android markdown viewer with HTML and LaTeX (KaTeX) rendering.
 
+![Home screen](screenshots/openmd_home.jpeg)
+
+More screenshots available in [`screenshots/`](screenshots/).
+
 Render `.md` files from any file manager or app that sends `text/markdown` or `text/plain`. WebView-based rendering with markdown-it 14 + KaTeX, Material 3 theming, and table of contents navigation.
 
 ## Features
