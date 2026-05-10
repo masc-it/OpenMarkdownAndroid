@@ -12,7 +12,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -36,12 +36,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mascit.openmarkdown.ui.theme.OpenMarkdownTheme
+import org.json.JSONObject
 import com.mascit.openmarkdown.util.RecentFilesStore
 import com.mascit.openmarkdown.util.TableOfContents
 import com.mascit.openmarkdown.util.TocEntry
@@ -98,6 +100,37 @@ class ViewerActivity : ComponentActivity() {
         }
     }
 
+    // ── Theme bridge ───────────────────────────────────────────────────────
+
+    private var themeBridge: ThemeBridge? = null
+
+    private inner class ThemeBridge(private val colors: ColorScheme) {
+        @android.webkit.JavascriptInterface
+        fun getThemeColors(): String {
+            val argb = { c: androidx.compose.ui.graphics.Color ->
+                String.format("#%06x", c.toArgb().toLong() and 0x00FFFFFFL)
+            }
+            return JSONObject().apply {
+                put("--bg", argb(colors.background))
+                put("--surface", argb(colors.surface))
+                put("--text", argb(colors.onBackground))
+                put("--text-secondary", argb(colors.onSurfaceVariant))
+                put("--primary", argb(colors.primary))
+                put("--code-bg", argb(colors.surfaceVariant))
+                put("--code-inline", argb(colors.surfaceVariant.copy(alpha = 0.4f)))
+                put("--border", argb(colors.outline))
+                put("--link", argb(colors.primary))
+            }.toString()
+        }
+    }
+
+    private fun applyTheme() {
+        val bridge = themeBridge ?: return
+        webView?.evaluateJavascript(
+            "applyThemeColors(${bridge.getThemeColors()})", null
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -110,6 +143,7 @@ class ViewerActivity : ComponentActivity() {
 
         setContent {
             OpenMarkdownTheme {
+                val colorScheme = MaterialTheme.colorScheme
                 ViewerScreen(
                     tocEntries = tocEntries,
                     showToc = showToc,
@@ -117,7 +151,7 @@ class ViewerActivity : ComponentActivity() {
                     onTocRequest = { showToc = true },
                     onTocDismiss = { showToc = false },
                     onTocEntryClick = { index -> scrollToHeading(index) },
-                    webViewFactory = ::createWebView
+                    webViewFactory = { createWebView(colorScheme) }
                 )
             }
         }
@@ -139,16 +173,23 @@ class ViewerActivity : ComponentActivity() {
     // ── WebView ──────────────────────────────────────────────────────────
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun createWebView(): WebView {
+    private fun createWebView(colorScheme: ColorScheme): WebView {
         return WebView(this).apply {
+            setBackgroundColor(colorScheme.background.toArgb())
             settings.javaScriptEnabled = true
             addJavascriptInterface(markdownBridge, "AndroidBridge")
             addJavascriptInterface(TocBridge(), "Android")
+
+            val bridge = ThemeBridge(colorScheme)
+            themeBridge = bridge
+            addJavascriptInterface(bridge, "Theme")
+
             webChromeClient = object : WebChromeClient() {}
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     Log.d(TAG, "WebView onPageFinished url=$url")
                     pageLoaded = true
+                    applyTheme()
                     renderPendingMarkdown()
                 }
             }

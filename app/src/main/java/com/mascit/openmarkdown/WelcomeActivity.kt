@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,10 +37,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -46,9 +51,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.mascit.openmarkdown.ui.theme.LocalThemePreference
 import com.mascit.openmarkdown.ui.theme.OpenMarkdownTheme
 import com.mascit.openmarkdown.util.RecentFile
 import com.mascit.openmarkdown.util.RecentFilesStore
+import com.mascit.openmarkdown.util.ThemeMode
 
 // ── Palette (Tailwind Slate) ──────────────────────────────────────────────────
 
@@ -94,8 +101,20 @@ class WelcomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
+
             OpenMarkdownTheme {
-                val colors = if (isSystemInDarkTheme()) DarkColors else LightColors
+                val pref = LocalThemePreference.current
+                // Sync state from pref on first composition
+                if (pref != null) themeMode = pref.getThemeMode()
+
+                val sysDark = isSystemInDarkTheme()
+                val effectiveDark = when (themeMode) {
+                    ThemeMode.SYSTEM -> sysDark
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                }
+                val colors = if (effectiveDark) DarkColors else LightColors
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -103,7 +122,15 @@ class WelcomeActivity : ComponentActivity() {
                         .padding(WindowInsets.systemBars.asPaddingValues()),
                     contentAlignment = Alignment.Center
                 ) {
-                    WelcomeContent(colors)
+                    WelcomeContent(colors, themeMode = themeMode, onThemeToggle = {
+                        val next = when (themeMode) {
+                            ThemeMode.SYSTEM -> ThemeMode.LIGHT
+                            ThemeMode.LIGHT -> ThemeMode.DARK
+                            ThemeMode.DARK -> ThemeMode.SYSTEM
+                        }
+                        pref?.setThemeMode(next)
+                        themeMode = next
+                    })
                 }
             }
         }
@@ -113,7 +140,11 @@ class WelcomeActivity : ComponentActivity() {
 // ── Composables ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun WelcomeContent(colors: WelcomeColors) {
+private fun WelcomeContent(
+    colors: WelcomeColors,
+    themeMode: ThemeMode,
+    onThemeToggle: () -> Unit
+) {
     val context = LocalContext.current
     val store = remember { RecentFilesStore(context) }
     var recentFiles by remember { mutableStateOf(store.list()) }
@@ -127,60 +158,103 @@ private fun WelcomeContent(colors: WelcomeColors) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Hero
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(color = colors.hash)) { append("# ") }
-                withStyle(SpanStyle(color = colors.title)) { append("OpenMarkdown") }
-            },
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.5).sp
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = "render .md files, html and latex support",
-            fontSize = 15.sp,
-            fontStyle = FontStyle.Italic,
-            color = colors.tagline,
-            letterSpacing = 0.1.sp
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Theme toggle — top-right
+        ThemeSwitchButton(
+            mode = themeMode,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 16.dp),
+            onClick = onThemeToggle
         )
 
-        // History
-        if (recentFiles.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(48.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
 
+            // Hero
             Text(
-                text = "RECENT",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 2.sp,
-                color = colors.sectionLabel,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp)
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = colors.hash)) { append("# ") }
+                    withStyle(SpanStyle(color = colors.title)) { append("OpenMarkdown") }
+                },
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "render .md files, html and latex support",
+                fontSize = 15.sp,
+                fontStyle = FontStyle.Italic,
+                color = colors.tagline,
+                letterSpacing = 0.1.sp
             )
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                recentFiles.forEach { file ->
-                    RecentFileRow(file, colors) { openFile(context, file) }
+            // History
+            if (recentFiles.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(48.dp))
+
+                Text(
+                    text = "RECENT",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 2.sp,
+                    color = colors.sectionLabel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp)
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    recentFiles.forEach { file ->
+                        RecentFileRow(file, colors) { openFile(context, file) }
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(1f))
+        }
     }
+}
+
+@Composable
+private fun ThemeSwitchButton(
+    mode: ThemeMode,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+
+    val emoji = when (mode) {
+        ThemeMode.SYSTEM -> "\uD83D\uDCBB"  // 💻
+        ThemeMode.LIGHT  -> "\u2600\uFE0F"  // ☀️
+        ThemeMode.DARK   -> "\uD83C\uDF19"  // 🌙
+    }
+
+    val label = when (mode) {
+        ThemeMode.SYSTEM -> "system"
+        ThemeMode.LIGHT  -> "light"
+        ThemeMode.DARK   -> "dark"
+    }
+
+    Text(
+        text = emoji,
+        fontSize = 24.sp,
+        modifier = modifier
+            .semantics { contentDescription = "Switch theme: $label" }
+            .size(44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            .clickable(onClick = onClick),
+        textAlign = TextAlign.Center
+    )
 }
 
 @Composable
