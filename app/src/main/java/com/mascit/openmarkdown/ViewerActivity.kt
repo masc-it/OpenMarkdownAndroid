@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import com.mascit.openmarkdown.ui.theme.OpenMarkdownTheme
 import org.json.JSONObject
 import com.mascit.openmarkdown.util.RecentFilesStore
@@ -68,6 +69,7 @@ class ViewerActivity : ComponentActivity() {
     private val recentFiles by lazy { RecentFilesStore(this) }
 
     private var pendingMarkdown: String? = null
+    private var originalMarkdown: String? = null
     private var webView: WebView? = null
     private var pageLoaded = false
 
@@ -136,6 +138,7 @@ class ViewerActivity : ComponentActivity() {
 
         Log.d(TAG, "onCreate intent=${intent} action=${intent?.action}")
         pendingMarkdown = readMarkdownFromIntent()
+        originalMarkdown = pendingMarkdown
         tocEntries = pendingMarkdown?.let { TableOfContents.parse(it).entries } ?: emptyList()
         Log.d(TAG, "onCreate pendingMarkdown length=${pendingMarkdown?.length} toc=${tocEntries.size}")
 
@@ -148,9 +151,11 @@ class ViewerActivity : ComponentActivity() {
                     tocEntries = tocEntries,
                     showToc = showToc,
                     activeHeadingIndex = activeHeadingIndex,
+                    markdownContent = originalMarkdown,
                     onTocRequest = { showToc = true },
                     onTocDismiss = { showToc = false },
                     onTocEntryClick = { index -> scrollToHeading(index) },
+                    onShare = { shareMarkdown() },
                     webViewFactory = { createWebView(colorScheme) }
                 )
             }
@@ -162,6 +167,7 @@ class ViewerActivity : ComponentActivity() {
         Log.d(TAG, "onNewIntent intent=$intent action=${intent?.action}")
         setIntent(intent)
         pendingMarkdown = readMarkdownFromIntent()
+        originalMarkdown = pendingMarkdown
         tocEntries = pendingMarkdown?.let { TableOfContents.parse(it).entries } ?: emptyList()
         Log.d(TAG, "onNewIntent pendingMarkdown length=${pendingMarkdown?.length}")
         saveToRecent()
@@ -284,6 +290,30 @@ class ViewerActivity : ComponentActivity() {
         }
     }
 
+    private fun shareMarkdown() {
+        val text = originalMarkdown ?: return
+        val title = TableOfContents.parse(text).extractTitle(text) ?: "document"
+        val safeName = title.replace(Regex("[^a-zA-Z0-9._-]"), "_") + ".md"
+
+        val cacheFile = File(cacheDir, "share").apply { mkdirs() }
+            .let { File(it, safeName) }
+        cacheFile.writeText(text)
+
+        val uri = FileProvider.getUriForFile(
+            this,
+            "${packageName}.fileprovider",
+            cacheFile
+        )
+
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/markdown"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, title)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(shareIntent, "Share markdown"))
+    }
+
     private fun renderPendingMarkdown() {
         val text = pendingMarkdown
         val view = webView
@@ -304,9 +334,11 @@ private fun ViewerScreen(
     tocEntries: List<TocEntry>,
     showToc: Boolean,
     activeHeadingIndex: Int?,
+    markdownContent: String?,
     onTocRequest: () -> Unit,
     onTocDismiss: () -> Unit,
     onTocEntryClick: (Int) -> Unit,
+    onShare: () -> Unit,
     webViewFactory: () -> WebView
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -319,19 +351,33 @@ private fun ViewerScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (tocEntries.isNotEmpty()) {
+            if (tocEntries.isNotEmpty() || markdownContent != null) {
                 Row(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clickable(onClick = onTocRequest),
-                        text = "Contents",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.3.sp
-                    )
+                    if (tocEntries.isNotEmpty()) {
+                        Text(
+                            modifier = Modifier
+                                .padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
+                                .clickable(onClick = onTocRequest),
+                            text = "Contents",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
+                    if (markdownContent != null) {
+                        Text(
+                            modifier = Modifier
+                                .padding(top = 4.dp, bottom = 4.dp)
+                                .clickable(onClick = onShare),
+                            text = "Share",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
                 }
             }
 
