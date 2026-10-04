@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">OpenMarkdown</string>
+    <string name="no_browser_available">No app available to open web links</string>
 </resources>

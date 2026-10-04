@@ -1,6 +1,7 @@
 package com.mascit.openmarkdown
 
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -8,6 +9,8 @@ import android.util.Log
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
@@ -192,6 +195,30 @@ class ViewerActivity : ComponentActivity() {
 
             webChromeClient = object : WebChromeClient() {}
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest
+                ): Boolean {
+                    val uri = request.url
+                    if (!request.isForMainFrame ||
+                        !(uri.scheme.equals("http", ignoreCase = true) ||
+                            uri.scheme.equals("https", ignoreCase = true))
+                    ) {
+                        return false
+                    }
+
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    } catch (e: ActivityNotFoundException) {
+                        Toast.makeText(
+                            this@ViewerActivity,
+                            R.string.no_browser_available,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return true
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     Log.d(TAG, "WebView onPageFinished url=$url")
                     pageLoaded = true
